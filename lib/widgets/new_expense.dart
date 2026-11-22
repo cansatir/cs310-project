@@ -35,13 +35,15 @@ class _NewExpenseState extends State<NewExpense> {
   }
 
   void _presentDatePicker() async {
-    final now = DateTime.now();
+    final now = DateUtils.dateOnly(DateTime.now());
+    final oldestDate = DateTime(now.year - 5, now.month, now.day);
+    final initialDate = DateUtils.dateOnly(_selectedDate ?? now);
 
     final pickedDate = await showDatePicker(
       context: context,
-      initialDate: _selectedDate ?? now,
-      firstDate: DateTime(now.year - 5, now.month, now.day),
-      lastDate: now,
+      initialDate: initialDate,
+      firstDate: initialDate.isBefore(oldestDate) ? initialDate : oldestDate,
+      lastDate: initialDate.isAfter(now) ? initialDate : now,
     );
     if (!mounted || pickedDate == null) return;
     setState(() {
@@ -110,6 +112,7 @@ class _NewExpenseState extends State<NewExpense> {
       child: SizedBox(
         height: double.infinity,
         child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + keyboardSpace),
             child: Form(
@@ -117,6 +120,7 @@ class _NewExpenseState extends State<NewExpense> {
               autovalidateMode: AutovalidateMode.onUserInteraction,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   TextFormField(
                     controller: _titleController,
@@ -127,60 +131,57 @@ class _NewExpenseState extends State<NewExpense> {
                     maxLength: 50,
                     decoration: const InputDecoration(label: Text('Title')),
                   ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _amountController,
-                          validator: (value) {
-                            final amount = double.tryParse(value?.trim() ?? '');
-                            return amount == null ||
-                                    !amount.isFinite ||
-                                    amount <= 0
-                                ? 'Enter a valid amount greater than zero.'
-                                : null;
-                          },
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          maxLength: 50,
-                          decoration: const InputDecoration(
-                            prefixText: '\$',
-                            label: Text('Amount'),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: FormField<DateTime>(
-                          key: _dateFieldKey,
-                          initialValue: _selectedDate,
-                          validator: (value) =>
-                              value == null ? 'Please select a date.' : null,
-                          builder: (field) => InputDecorator(
-                            decoration: InputDecoration(
-                              labelText: 'Date',
-                              errorText: field.errorText,
-                            ),
-                            child: Row(
-                              children: [
-                                Text(
-                                  _selectedDate == null
-                                      ? 'No date selected'
-                                      : formatter.format(_selectedDate!),
-                                ),
-                                IconButton(
-                                  tooltip: 'Select date',
-                                  onPressed: _presentDatePicker,
-                                  icon: const Icon(Icons.calendar_month),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                  TextFormField(
+                    controller: _amountController,
+                    validator: (value) {
+                      final amount = double.tryParse(value?.trim() ?? '');
+                      return amount == null || !amount.isFinite || amount <= 0
+                          ? 'Enter a valid amount greater than zero.'
+                          : null;
+                    },
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    maxLength: 50,
+                    decoration: const InputDecoration(
+                      prefixText: '\$',
+                      labelText: 'Amount',
+                      errorMaxLines: 3,
+                    ),
                   ),
+                  FormField<DateTime>(
+                    key: _dateFieldKey,
+                    initialValue: _selectedDate,
+                    validator: (value) =>
+                        value == null ? 'Please select a date.' : null,
+                    builder: (field) => InkWell(
+                      onTap: _presentDatePicker,
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: 'Date',
+                          errorText: field.errorText,
+                          errorMaxLines: 3,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _selectedDate == null
+                                    ? 'No date selected'
+                                    : formatter.format(_selectedDate!),
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Select date',
+                              onPressed: _presentDatePicker,
+                              icon: const Icon(Icons.calendar_month),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   TextFormField(
                     controller: _noteController,
                     keyboardType: TextInputType.text,
@@ -190,30 +191,33 @@ class _NewExpenseState extends State<NewExpense> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Row(
+                  DropdownButtonFormField<Category>(
+                    initialValue: _selectedCategory,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Category'),
+                    items: Category.values
+                        .map(
+                          (category) => DropdownMenuItem(
+                            value: category,
+                            child: Text(category.name.toUpperCase()),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() => _selectedCategory = value);
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
-                      DropdownButton<Category>(
-                        value: _selectedCategory,
-                        items: Category.values
-                            .map(
-                              (category) => DropdownMenuItem(
-                                value: category,
-                                child: Text(category.name.toUpperCase()),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value == null) return;
-                          setState(() {
-                            _selectedCategory = value;
-                          });
-                        },
-                      ),
-                      const Spacer(),
                       TextButton(
                         onPressed: _hasSubmitted
                             ? null
-                            : () => Navigator.pop(context),
+                            : () => Navigator.of(context).pop(),
                         child: const Text('Cancel'),
                       ),
                       ElevatedButton(
