@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:expense_tracker/settings/currency_preferences.dart';
+import 'package:expense_tracker/theme/app_theme.dart';
 import 'package:expense_tracker/models/expense.dart';
 
 class NewExpense extends StatefulWidget {
@@ -114,7 +116,12 @@ class _NewExpenseState extends State<NewExpense> {
         child: SingleChildScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Padding(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + keyboardSpace),
+            padding: EdgeInsets.fromLTRB(
+              AppTheme.pagePadding,
+              AppTheme.pagePadding,
+              AppTheme.pagePadding,
+              AppTheme.pagePadding + keyboardSpace,
+            ),
             child: Form(
               key: _formKey,
               autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -131,24 +138,29 @@ class _NewExpenseState extends State<NewExpense> {
                     maxLength: 50,
                     decoration: const InputDecoration(label: Text('Title')),
                   ),
-                  TextFormField(
-                    controller: _amountController,
-                    validator: (value) {
-                      final amount = double.tryParse(value?.trim() ?? '');
-                      return amount == null || !amount.isFinite || amount <= 0
-                          ? 'Enter a valid amount greater than zero.'
-                          : null;
-                    },
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    maxLength: 50,
-                    decoration: const InputDecoration(
-                      prefixText: '\$',
-                      labelText: 'Amount',
-                      errorMaxLines: 3,
+                  const SizedBox(height: AppTheme.smallSpacing),
+                  ValueListenableBuilder<ExpenseCurrency>(
+                    valueListenable: CurrencyPreferences.current,
+                    builder: (context, currency, _) => TextFormField(
+                      controller: _amountController,
+                      validator: (value) {
+                        final amount = double.tryParse(value?.trim() ?? '');
+                        return amount == null || !amount.isFinite || amount <= 0
+                            ? 'Enter a valid amount greater than zero.'
+                            : null;
+                      },
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      maxLength: 50,
+                      decoration: InputDecoration(
+                        prefixText: '${currency.code} ',
+                        labelText: 'Amount',
+                        errorMaxLines: 3,
+                      ),
                     ),
                   ),
+                  const SizedBox(height: AppTheme.smallSpacing),
                   FormField<DateTime>(
                     key: _dateFieldKey,
                     initialValue: _selectedDate,
@@ -181,7 +193,7 @@ class _NewExpenseState extends State<NewExpense> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppTheme.pagePadding),
                   TextFormField(
                     controller: _noteController,
                     keyboardType: TextInputType.text,
@@ -190,7 +202,7 @@ class _NewExpenseState extends State<NewExpense> {
                       label: Text('Note (optional)'),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppTheme.pagePadding),
                   DropdownButtonFormField<Category>(
                     initialValue: _selectedCategory,
                     isExpanded: true,
@@ -208,7 +220,7 @@ class _NewExpenseState extends State<NewExpense> {
                       setState(() => _selectedCategory = value);
                     },
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppTheme.sectionSpacing),
                   Wrap(
                     alignment: WrapAlignment.end,
                     spacing: 8,

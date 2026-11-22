@@ -4,13 +4,22 @@ import 'package:expense_tracker/screens/auth/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-Widget _app() => ChangeNotifierProvider(
-  create: (_) => ExpenseProvider(),
+late ExpenseProvider expenses;
+
+Widget _app() => ChangeNotifierProvider.value(
+  value: expenses,
   child: const MaterialApp(home: LoginScreen()),
 );
 
 void main() {
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    expenses = ExpenseProvider();
+    await expenses.load();
+  });
+  tearDown(() => expenses.dispose());
   group('AuthValidators', () {
     test('email must be filled and well formed', () {
       expect(AuthValidators.email(''), isNotNull);

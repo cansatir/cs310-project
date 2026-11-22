@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:expense_tracker/theme/app_theme.dart';
 import 'package:expense_tracker/screens/auth/auth_validators.dart';
 import 'package:expense_tracker/screens/auth/password_form_field.dart';
 import 'package:expense_tracker/screens/auth/signup_screen.dart';
@@ -45,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(AppTheme.sectionSpacing),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 420),
                     child: Form(
@@ -55,6 +56,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          const Image(
+                            image: AssetImage(
+                              'assets/images/spendwise_mark.png',
+                            ),
+                            height: 64,
+                            semanticLabel: 'SpendWise logo',
+                          ),
+                          const SizedBox(height: AppTheme.pagePadding),
                           Text(
                             'SpendWise',
                             textAlign: TextAlign.center,
@@ -77,7 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               border: OutlineInputBorder(),
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: AppTheme.pagePadding),
                           PasswordFormField(
                             controller: _passwordController,
                             label: 'Password',
@@ -85,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             textInputAction: TextInputAction.done,
                             onFieldSubmitted: (_) => _submit(),
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: AppTheme.sectionSpacing),
                           FilledButton(
                             onPressed: _submit,
                             child: const Text('Log in'),

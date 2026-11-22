@@ -12,7 +12,10 @@ enum ExpenseCurrency {
   final String code;
 
   String format(double amount, {String? locale}) {
-    return NumberFormat.simpleCurrency(name: code, locale: locale).format(amount);
+    return NumberFormat.simpleCurrency(
+      name: code,
+      locale: locale,
+    ).format(amount);
   }
 }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:expense_tracker/theme/app_theme.dart';
 import 'package:expense_tracker/screens/auth/auth_validators.dart';
 import 'package:expense_tracker/screens/auth/password_form_field.dart';
 import 'package:expense_tracker/screens/main_shell.dart';
@@ -50,7 +51,7 @@ class _SignupScreenState extends State<SignupScreen> {
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(AppTheme.sectionSpacing),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 420),
                     child: Form(
@@ -77,7 +78,7 @@ class _SignupScreenState extends State<SignupScreen> {
                               border: OutlineInputBorder(),
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: AppTheme.pagePadding),
                           TextFormField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
@@ -88,13 +89,13 @@ class _SignupScreenState extends State<SignupScreen> {
                               border: OutlineInputBorder(),
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: AppTheme.pagePadding),
                           PasswordFormField(
                             controller: _passwordController,
                             label: 'Password',
                             validator: AuthValidators.signupPassword,
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: AppTheme.pagePadding),
                           PasswordFormField(
                             controller: _confirmController,
                             label: 'Confirm password',
@@ -105,7 +106,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             textInputAction: TextInputAction.done,
                             onFieldSubmitted: (_) => _submit(),
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: AppTheme.sectionSpacing),
                           FilledButton(
                             onPressed: _submit,
                             child: const Text('Sign up'),

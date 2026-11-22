@@ -2,9 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:expense_tracker/models/expense.dart';
 import 'package:expense_tracker/utils/monthly_summary.dart';
 
-Expense expense(double amount, DateTime date, Category category) => Expense(
-  title: 'Test', amount: amount, date: date, category: category,
-);
+Expense expense(double amount, DateTime date, Category category) =>
+    Expense(title: 'Test', amount: amount, date: date, category: category);
 
 void main() {
   test('filters by month and year and totals categories', () {
@@ -27,4 +26,17 @@ void main() {
     expect(summary.total, 0);
     expect(summary.categoryTotals.values.every((v) => v == 0), isTrue);
   });
+  test(
+    'sorts newest first and finds the largest category without changing input',
+    () {
+      final early = expense(10, DateTime(2026, 11, 1), Category.Food);
+      final late = expense(25, DateTime(2026, 11, 20), Category.Bills);
+      final original = [early, late];
+      final summary = MonthlySummary(original, DateTime(2026, 11));
+      expect(summary.expenses, [late, early]);
+      expect(original, [early, late]);
+      expect(summary.largestCategory, Category.Bills);
+      expect(MonthlySummary([], DateTime(2026, 11)).largestCategory, isNull);
+    },
+  );
 }

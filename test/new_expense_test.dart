@@ -182,8 +182,13 @@ void main() {
     final button = find.text('Update Expense');
     await tester.ensureVisible(button);
     await tester.pumpAndSettle();
-    await tester.tap(button);
-    await tester.tap(button);
+    final submit = tester
+        .widget<ElevatedButton>(
+          find.widgetWithText(ElevatedButton, 'Update Expense'),
+        )
+        .onPressed!;
+    submit();
+    submit();
     await tester.pumpAndSettle();
     expect(saved, hasLength(1));
     expect(find.text('Expense updated'), findsOneWidget);
@@ -224,7 +229,12 @@ void main() {
     final original = existingExpense();
     await openForm(tester, expense: original, onSave: saved.add);
     await tapVisible(tester, find.byTooltip('Select date'));
-    await tester.tap(find.text('Cancel'));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(DatePickerDialog),
+        matching: find.text('Cancel'),
+      ),
+    );
     await tester.pumpAndSettle();
     await tapVisible(tester, find.text('Update Expense'));
     expect(saved.single.date, original.date);
@@ -240,7 +250,12 @@ void main() {
       );
       await tapVisible(tester, find.byTooltip('Select date'));
       expect(tester.takeException(), isNull);
-      await tester.tap(find.text('Cancel'));
+      await tester.tap(
+        find.descendant(
+          of: find.byType(DatePickerDialog),
+          matching: find.text('Cancel'),
+        ),
+      );
       await tester.pumpAndSettle();
     },
   );

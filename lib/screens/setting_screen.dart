@@ -30,7 +30,9 @@ class _SettingScreenState extends State<SettingScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save the currency. Try again.')),
+        const SnackBar(
+          content: Text('Could not save the currency. Try again.'),
+        ),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
