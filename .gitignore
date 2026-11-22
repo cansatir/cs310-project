@@ -46,3 +46,6 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Generated Step 2.2 delivery PDFs (code SHA is referenced after publishing).
+/output/pdf/
