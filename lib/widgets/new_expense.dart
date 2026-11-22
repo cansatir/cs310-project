@@ -12,10 +12,13 @@ class NewExpense extends StatefulWidget {
 }
 
 class _NewExpenseState extends State<NewExpense> {
+  final _formKey = GlobalKey<FormState>();
+  final _dateFieldKey = GlobalKey<FormFieldState<DateTime>>();
   late final TextEditingController _titleController;
   late final TextEditingController _amountController;
   late final TextEditingController _noteController;
   DateTime? _selectedDate;
+  bool _hasSubmitted = false;
   Category _selectedCategory = Category.Food;
 
   bool get _isEditing => widget.expense != null;
@@ -32,41 +35,28 @@ class _NewExpenseState extends State<NewExpense> {
   }
 
   void _presentDatePicker() async {
-    final now = DateTime.now();
+    final now = DateUtils.dateOnly(DateTime.now());
+    final oldestDate = DateTime(now.year - 5, now.month, now.day);
+    final initialDate = DateUtils.dateOnly(_selectedDate ?? now);
 
     final pickedDate = await showDatePicker(
       context: context,
-      initialDate: _selectedDate ?? now,
-      firstDate: DateTime(now.year - 5, now.month, now.day),
-      lastDate: now,
+      initialDate: initialDate,
+      firstDate: initialDate.isBefore(oldestDate) ? initialDate : oldestDate,
+      lastDate: initialDate.isAfter(now) ? initialDate : now,
     );
-    if (pickedDate == null) return; // user cancelled: keep the old date
+    if (!mounted || pickedDate == null) return;
     setState(() {
       _selectedDate = pickedDate;
+      _dateFieldKey.currentState?.didChange(pickedDate);
     });
   }
 
-  void _submitExpenseData() {
-    final enteredAmount = double.tryParse(_amountController.text);
-    final amountIsInvalid = enteredAmount == null || enteredAmount <= 0;
-    if (_titleController.text.trim().isEmpty ||
-        amountIsInvalid ||
-        _selectedDate == null) {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Invalid Input'),
-          content: const Text('Please make sure valid input is entered'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Okay'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
+  Future<void> _submitExpenseData() async {
+    if (_hasSubmitted || !_formKey.currentState!.validate()) return;
+    setState(() => _hasSubmitted = true);
+    FocusScope.of(context).unfocus();
+    final enteredAmount = double.parse(_amountController.text.trim());
 
     final note = _noteController.text.trim();
 
@@ -80,7 +70,30 @@ class _NewExpenseState extends State<NewExpense> {
         note: note.isEmpty ? null : note,
       ),
     );
-    Navigator.pop(context);
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          title: Text(_isEditing ? 'Expense updated' : 'Expense saved'),
+          content: Text(
+            _isEditing
+                ? 'Your changes have been saved.'
+                : 'Your expense has been saved.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -99,94 +112,124 @@ class _NewExpenseState extends State<NewExpense> {
       child: SizedBox(
         height: double.infinity,
         child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + keyboardSpace),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: _titleController,
-                  keyboardType: TextInputType.text,
-                  maxLength: 50,
-                  decoration: const InputDecoration(label: Text('Title')),
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _amountController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        maxLength: 50,
-                        decoration: const InputDecoration(
-                          prefixText: '\$',
-                          label: Text('Amount'),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Text(
-                            _selectedDate == null
-                                ? 'No date selected'
-                                : formatter.format(_selectedDate!),
-                          ),
-                          IconButton(
-                            onPressed: _presentDatePicker,
-                            icon: const Icon(Icons.calendar_month),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                TextField(
-                  controller: _noteController,
-                  keyboardType: TextInputType.text,
-                  maxLength: 100,
-                  decoration: const InputDecoration(
-                    label: Text('Note (optional)'),
+            child: Form(
+              key: _formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextFormField(
+                    controller: _titleController,
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Please enter a title.'
+                        : null,
+                    keyboardType: TextInputType.text,
+                    maxLength: 50,
+                    decoration: const InputDecoration(label: Text('Title')),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    DropdownButton<Category>(
-                      value: _selectedCategory,
-                      items: Category.values
-                          .map(
-                            (category) => DropdownMenuItem(
-                              value: category,
-                              child: Text(category.name.toUpperCase()),
+                  TextFormField(
+                    controller: _amountController,
+                    validator: (value) {
+                      final amount = double.tryParse(value?.trim() ?? '');
+                      return amount == null || !amount.isFinite || amount <= 0
+                          ? 'Enter a valid amount greater than zero.'
+                          : null;
+                    },
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    maxLength: 50,
+                    decoration: const InputDecoration(
+                      prefixText: '\$',
+                      labelText: 'Amount',
+                      errorMaxLines: 3,
+                    ),
+                  ),
+                  FormField<DateTime>(
+                    key: _dateFieldKey,
+                    initialValue: _selectedDate,
+                    validator: (value) =>
+                        value == null ? 'Please select a date.' : null,
+                    builder: (field) => InkWell(
+                      onTap: _presentDatePicker,
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: 'Date',
+                          errorText: field.errorText,
+                          errorMaxLines: 3,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _selectedDate == null
+                                    ? 'No date selected'
+                                    : formatter.format(_selectedDate!),
+                              ),
                             ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value == null) return;
-                        setState(() {
-                          _selectedCategory = value;
-                        });
-                      },
-                    ),
-                    const Spacer(),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel'),
-                    ),
-                    ElevatedButton(
-                      onPressed: _submitExpenseData,
-                      child: Text(
-                        _isEditing ? 'Update Expense' : 'Save Expense',
+                            IconButton(
+                              tooltip: 'Select date',
+                              onPressed: _presentDatePicker,
+                              icon: const Icon(Icons.calendar_month),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _noteController,
+                    keyboardType: TextInputType.text,
+                    maxLength: 100,
+                    decoration: const InputDecoration(
+                      label: Text('Note (optional)'),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<Category>(
+                    initialValue: _selectedCategory,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Category'),
+                    items: Category.values
+                        .map(
+                          (category) => DropdownMenuItem(
+                            value: category,
+                            child: Text(category.name.toUpperCase()),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() => _selectedCategory = value);
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      TextButton(
+                        onPressed: _hasSubmitted
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        child: const Text('Cancel'),
+                      ),
+                      ElevatedButton(
+                        onPressed: _hasSubmitted ? null : _submitExpenseData,
+                        child: Text(
+                          _isEditing ? 'Update Expense' : 'Save Expense',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
