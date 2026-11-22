@@ -18,6 +18,7 @@ class _NewExpenseState extends State<NewExpense> {
   late final TextEditingController _amountController;
   late final TextEditingController _noteController;
   DateTime? _selectedDate;
+  bool _hasSubmitted = false;
   Category _selectedCategory = Category.Food;
 
   bool get _isEditing => widget.expense != null;
@@ -49,8 +50,10 @@ class _NewExpenseState extends State<NewExpense> {
     });
   }
 
-  void _submitExpenseData() {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _submitExpenseData() async {
+    if (_hasSubmitted || !_formKey.currentState!.validate()) return;
+    setState(() => _hasSubmitted = true);
+    FocusScope.of(context).unfocus();
     final enteredAmount = double.parse(_amountController.text.trim());
 
     final note = _noteController.text.trim();
@@ -65,7 +68,30 @@ class _NewExpenseState extends State<NewExpense> {
         note: note.isEmpty ? null : note,
       ),
     );
-    Navigator.pop(context);
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          title: Text(_isEditing ? 'Expense updated' : 'Expense saved'),
+          content: Text(
+            _isEditing
+                ? 'Your changes have been saved.'
+                : 'Your expense has been saved.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -185,11 +211,13 @@ class _NewExpenseState extends State<NewExpense> {
                       ),
                       const Spacer(),
                       TextButton(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: _hasSubmitted
+                            ? null
+                            : () => Navigator.pop(context),
                         child: const Text('Cancel'),
                       ),
                       ElevatedButton(
-                        onPressed: _submitExpenseData,
+                        onPressed: _hasSubmitted ? null : _submitExpenseData,
                         child: Text(
                           _isEditing ? 'Update Expense' : 'Save Expense',
                         ),
