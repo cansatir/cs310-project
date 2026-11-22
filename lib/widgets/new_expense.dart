@@ -12,6 +12,8 @@ class NewExpense extends StatefulWidget {
 }
 
 class _NewExpenseState extends State<NewExpense> {
+  final _formKey = GlobalKey<FormState>();
+  final _dateFieldKey = GlobalKey<FormFieldState<DateTime>>();
   late final TextEditingController _titleController;
   late final TextEditingController _amountController;
   late final TextEditingController _noteController;
@@ -40,33 +42,16 @@ class _NewExpenseState extends State<NewExpense> {
       firstDate: DateTime(now.year - 5, now.month, now.day),
       lastDate: now,
     );
-    if (pickedDate == null) return; // user cancelled: keep the old date
+    if (!mounted || pickedDate == null) return;
     setState(() {
       _selectedDate = pickedDate;
+      _dateFieldKey.currentState?.didChange(pickedDate);
     });
   }
 
   void _submitExpenseData() {
-    final enteredAmount = double.tryParse(_amountController.text);
-    final amountIsInvalid = enteredAmount == null || enteredAmount <= 0;
-    if (_titleController.text.trim().isEmpty ||
-        amountIsInvalid ||
-        _selectedDate == null) {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Invalid Input'),
-          content: const Text('Please make sure valid input is entered'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Okay'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
+    final enteredAmount = double.parse(_amountController.text.trim());
 
     final note = _noteController.text.trim();
 
@@ -101,92 +86,118 @@ class _NewExpenseState extends State<NewExpense> {
         child: SingleChildScrollView(
           child: Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + keyboardSpace),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: _titleController,
-                  keyboardType: TextInputType.text,
-                  maxLength: 50,
-                  decoration: const InputDecoration(label: Text('Title')),
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _amountController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        maxLength: 50,
-                        decoration: const InputDecoration(
-                          prefixText: '\$',
-                          label: Text('Amount'),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Text(
-                            _selectedDate == null
-                                ? 'No date selected'
-                                : formatter.format(_selectedDate!),
-                          ),
-                          IconButton(
-                            onPressed: _presentDatePicker,
-                            icon: const Icon(Icons.calendar_month),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                TextField(
-                  controller: _noteController,
-                  keyboardType: TextInputType.text,
-                  maxLength: 100,
-                  decoration: const InputDecoration(
-                    label: Text('Note (optional)'),
+            child: Form(
+              key: _formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: _titleController,
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Please enter a title.'
+                        : null,
+                    keyboardType: TextInputType.text,
+                    maxLength: 50,
+                    decoration: const InputDecoration(label: Text('Title')),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    DropdownButton<Category>(
-                      value: _selectedCategory,
-                      items: Category.values
-                          .map(
-                            (category) => DropdownMenuItem(
-                              value: category,
-                              child: Text(category.name.toUpperCase()),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value == null) return;
-                        setState(() {
-                          _selectedCategory = value;
-                        });
-                      },
-                    ),
-                    const Spacer(),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel'),
-                    ),
-                    ElevatedButton(
-                      onPressed: _submitExpenseData,
-                      child: Text(
-                        _isEditing ? 'Update Expense' : 'Save Expense',
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _amountController,
+                          validator: (value) {
+                            final amount = double.tryParse(value?.trim() ?? '');
+                            return amount == null ||
+                                    !amount.isFinite ||
+                                    amount <= 0
+                                ? 'Enter a valid amount greater than zero.'
+                                : null;
+                          },
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          maxLength: 50,
+                          decoration: const InputDecoration(
+                            prefixText: '\$',
+                            label: Text('Amount'),
+                          ),
+                        ),
                       ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: FormField<DateTime>(
+                          key: _dateFieldKey,
+                          initialValue: _selectedDate,
+                          validator: (value) =>
+                              value == null ? 'Please select a date.' : null,
+                          builder: (field) => InputDecorator(
+                            decoration: InputDecoration(
+                              labelText: 'Date',
+                              errorText: field.errorText,
+                            ),
+                            child: Row(
+                              children: [
+                                Text(
+                                  _selectedDate == null
+                                      ? 'No date selected'
+                                      : formatter.format(_selectedDate!),
+                                ),
+                                IconButton(
+                                  tooltip: 'Select date',
+                                  onPressed: _presentDatePicker,
+                                  icon: const Icon(Icons.calendar_month),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  TextFormField(
+                    controller: _noteController,
+                    keyboardType: TextInputType.text,
+                    maxLength: 100,
+                    decoration: const InputDecoration(
+                      label: Text('Note (optional)'),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      DropdownButton<Category>(
+                        value: _selectedCategory,
+                        items: Category.values
+                            .map(
+                              (category) => DropdownMenuItem(
+                                value: category,
+                                child: Text(category.name.toUpperCase()),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setState(() {
+                            _selectedCategory = value;
+                          });
+                        },
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                      ElevatedButton(
+                        onPressed: _submitExpenseData,
+                        child: Text(
+                          _isEditing ? 'Update Expense' : 'Save Expense',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
