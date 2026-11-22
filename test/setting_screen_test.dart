@@ -69,7 +69,10 @@ void main() {
 
     expenses.removeExpense(expense);
     await tester.pump();
-    expect(tester.widget<ChoiceChip>(currencyChip('EUR')).onSelected, isNotNull);
+    expect(
+      tester.widget<ChoiceChip>(currencyChip('EUR')).onSelected,
+      isNotNull,
+    );
   });
 
   test('bundles the local illustration and custom font', () async {

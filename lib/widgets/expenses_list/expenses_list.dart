@@ -1,4 +1,6 @@
 import 'package:expense_tracker/models/expense.dart';
+import 'package:expense_tracker/settings/currency_preferences.dart';
+import 'package:expense_tracker/theme/app_theme.dart';
 import 'package:expense_tracker/widgets/expenses_list/expense_item.dart';
 import 'package:flutter/material.dart';
 
@@ -8,42 +10,76 @@ class ExpensesList extends StatelessWidget {
     required this.expenses,
     required this.onRemoveExpense,
     required this.onEditExpense,
+    this.asSliver = false,
   });
 
   final List<Expense> expenses;
-  final void Function(Expense expense) onRemoveExpense;
-  final void Function(Expense expense) onEditExpense;
+  final ValueChanged<Expense> onRemoveExpense;
+  final ValueChanged<Expense> onEditExpense;
+  final bool asSliver;
 
-  @override
-  // Scrollable list of expenses
-  Widget build(BuildContext context) {
-    return ListView.builder(
-      itemCount: expenses.length,
-      itemBuilder: (ctx, index) => Dismissible(
-        key: ValueKey(expenses[index].id),
-        direction: DismissDirection.horizontal,
-        background: Container(
-          color: Colors.blue,
-          alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.only(left: 20),
-          child: const Icon(Icons.edit, color: Colors.white),
-        ),
-        secondaryBackground: Container(
-          color: Colors.red,
-          alignment: Alignment.centerRight,
-          padding: const EdgeInsets.only(right: 20),
-          child: const Icon(Icons.delete, color: Colors.white),
-        ),
-        confirmDismiss: (direction) async {
-          if (direction == DismissDirection.startToEnd) {
-            onEditExpense(expenses[index]); // swipe right: edit
-            return false; // snap the card back
+  Future<bool> _confirmRemoval(BuildContext context, Expense expense) async {
+    final amount = CurrencyPreferences.current.value.format(expense.amount);
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete expense?'),
+            content: Text('Delete "${expense.title}" for $amount?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  Widget _buildItem(BuildContext context, int index) {
+    // Capture the record, not a potentially stale index after an async dialog.
+    final expense = expenses[index];
+    final colors = Theme.of(context).colorScheme;
+    return Dismissible(
+      key: ValueKey(expense.id),
+      background: Container(
+        color: colors.secondaryContainer,
+        alignment: AlignmentDirectional.centerStart,
+        padding: const EdgeInsets.all(AppTheme.pagePadding),
+        child: Icon(Icons.edit, color: colors.onSecondaryContainer),
+      ),
+      secondaryBackground: Container(
+        color: colors.errorContainer,
+        alignment: AlignmentDirectional.centerEnd,
+        padding: const EdgeInsets.all(AppTheme.pagePadding),
+        child: Icon(Icons.delete, color: colors.onErrorContainer),
+      ),
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd) {
+          onEditExpense(expense);
+          return false;
+        }
+        return _confirmRemoval(context, expense);
+      },
+      onDismissed: (_) => onRemoveExpense(expense),
+      child: ExpenseItem(
+        expense,
+        onEdit: () => onEditExpense(expense),
+        onDelete: () async {
+          if (await _confirmRemoval(context, expense) && context.mounted) {
+            onRemoveExpense(expense);
           }
-          return true; // swipe left: allow delete
         },
-        onDismissed: (direction) => onRemoveExpense(expenses[index]),
-        child: ExpenseItem(expenses[index]),
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) => asSliver
+      ? SliverList.builder(itemCount: expenses.length, itemBuilder: _buildItem)
+      : ListView.builder(itemCount: expenses.length, itemBuilder: _buildItem);
 }

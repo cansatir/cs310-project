@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:expense_tracker/models/expense.dart';
 import 'package:expense_tracker/providers/expense_provider.dart';
+import 'package:expense_tracker/theme/app_theme.dart';
 import 'package:expense_tracker/utils/monthly_summary.dart';
+import 'package:expense_tracker/widgets/shared/money_text.dart';
+import 'package:expense_tracker/widgets/shared/month_selector.dart';
+import 'package:expense_tracker/widgets/shared/monthly_total_card.dart';
 
 class SummaryScreen extends StatefulWidget {
   const SummaryScreen({super.key});
@@ -14,97 +17,79 @@ class SummaryScreen extends StatefulWidget {
 
 class _SummaryScreenState extends State<SummaryScreen> {
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
-  final _money = NumberFormat.currency(locale: 'en_US', symbol: r'$');
-
-  void _moveMonth(int offset) {
-    setState(() => _month = DateTime(_month.year, _month.month + offset));
-  }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ExpenseProvider>();
     final summary = MonthlySummary(provider.expenses, _month);
     final maxCategory = summary.categoryTotals.values.fold<double>(
-      0, (max, value) => value > max ? value : max,
+      0,
+      (max, value) => value > max ? value : max,
     );
     final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Summary')),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  tooltip: 'Previous month',
-                  onPressed: () => _moveMonth(-1),
-                  icon: const Icon(Icons.chevron_left),
-                ),
-                Expanded(
-                  child: Text(
-                    DateFormat.yMMMM().format(_month),
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.titleMedium,
+        child: provider.isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : ListView(
+                padding: const EdgeInsets.all(AppTheme.pagePadding),
+                children: [
+                  MonthSelector(
+                    month: _month,
+                    onChanged: (month) => setState(() => _month = month),
                   ),
-                ),
-                IconButton(
-                  tooltip: 'Next month',
-                  onPressed: () => _moveMonth(1),
-                  icon: const Icon(Icons.chevron_right),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Monthly spending', style: theme.textTheme.titleMedium),
-                    const SizedBox(height: 8),
-                    Text(_money.format(summary.total), style: theme.textTheme.headlineMedium),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text('Spending by category', style: theme.textTheme.titleLarge),
-            const SizedBox(height: 12),
-            if (summary.total == 0)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Text('No expenses recorded for this month.'),
-              ),
-            for (final category in Category.values)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(categoryIcons[category], size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(category.name)),
-                        Text(_money.format(summary.categoryTotals[category]!)),
-                      ],
+                  const SizedBox(height: AppTheme.pagePadding),
+                  MonthlyTotalCard(total: summary.total),
+                  const SizedBox(height: AppTheme.sectionSpacing),
+                  Text(
+                    'Spending by category',
+                    style: theme.textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: AppTheme.mediumSpacing),
+                  if (summary.total == 0)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(
+                        vertical: AppTheme.mediumSpacing,
+                      ),
+                      child: Text('No expenses recorded for this month.'),
                     ),
-                    const SizedBox(height: 6),
-                    LinearProgressIndicator(
-                      value: maxCategory == 0
-                          ? 0
-                          : summary.categoryTotals[category]! / maxCategory,
-                      minHeight: 10,
-                      borderRadius: BorderRadius.circular(8),
+                  for (final category in Category.values)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppTheme.smallSpacing,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: AppTheme.smallSpacing,
+                            runSpacing: AppTheme.smallSpacing,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Icon(categoryIcons[category], size: 20),
+                              Text(category.name),
+                              MoneyText(summary.categoryTotals[category]!),
+                            ],
+                          ),
+                          if (maxCategory > 0) ...[
+                            const SizedBox(height: AppTheme.smallSpacing),
+                            LinearProgressIndicator(
+                              value:
+                                  summary.categoryTotals[category]! /
+                                  maxCategory,
+                              semanticsLabel:
+                                  '${category.name} share of the largest category',
+                              minHeight: 10,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                  ],
-                ),
+                ],
               ),
-          ],
-        ),
       ),
     );
   }

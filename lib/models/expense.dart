@@ -6,6 +6,8 @@ final formatter = DateFormat.yMd();
 
 const uuid = Uuid();
 
+// These names are also the existing on-device JSON values; keep them compatible.
+// ignore: constant_identifier_names
 enum Category { Food, Transport, Shopping, Bills, Entertainment, Health, Other }
 
 const categoryIcons = {
